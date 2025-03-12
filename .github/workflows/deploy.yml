@@ -1,0 +1,46 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches:
+      - main # Trigger on push to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Run on the latest Ubuntu runner
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Step 2: Set up SSH to access EC2 instance
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }} # Add EC2 private key in GitHub secrets
+
+      # Step 3: Install Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Step 4: Install dependencies and build the project
+      - name: Install dependencies and build
+        run: |
+          cd frontend
+          npm install  # Install dependencies
+          npm run build  # Build the SvelteKit project
+
+      # Step 5: Deploy to EC2 (SSH into EC2 and deploy)
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@<your-ec2-ip> << 'EOF'
+            # Navigate to the frontend folder
+            cd ~/frontend
+            git pull origin main  # Pull latest changes from main branch
+            npm install  # Install dependencies
+            npm run build  # Build the project
+            pm2 restart frontend  # Restart PM2 to serve the updated app
+          EOF
